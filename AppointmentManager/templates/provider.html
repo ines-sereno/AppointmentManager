@@ -1,0 +1,111 @@
+<!--provider view-->
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Provider Dashboard</h2>
+
+<!-- select provider -->
+<form method="GET" class="mb-4">
+    <label for="provider_id">Select Yourself:</label>
+    <select name="provider_id" id="provider_id" class="form-select w-auto d-inline-block">
+        {% for provider, emp in providers %}
+        <option value="{{ provider.provider_ID }}" {% if provider.provider_ID|string == selected_provider_id %}selected{% endif %}>
+            {{ emp.first_name }} {{ emp.last_name }} ({{ provider.specialty }})
+        </option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Load Schedule</button>
+</form>
+
+{% if selected_provider_id %}
+
+<!-- provider's weekly schedule -->
+<h4>Your Weekly Schedule</h4>
+<table class="table table-bordered text-center w-auto">
+    <thead>
+        <tr>
+            {% for day in weekdays %}
+            <th>{{ day }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            {% for day in weekdays %}
+            <td>
+                {% if day in workdays %}
+                    ✔️<br><small>Room {{ workdays[day] }}</small>
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+    </tbody>
+</table>
+
+<h4 class="mt-5">Scheduled Appointments</h4>
+{% if scheduled_appointments %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th><th>Time</th><th>Patient</th><th>Status</th><th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for appt, patient in scheduled_appointments %}
+        <tr>
+            <td>{{ appt.appointment_date }}</td>
+            <td>{{ appt.appointment_time.strftime('%H:%M') }}</td>
+            <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+            <td>{{ appt.appointment_status }}</td>
+            <td>{{ appt.cancellation_reason or '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted">No scheduled appointments.</p>
+{% endif %}
+
+<!-- labs ordered by provider selected -->
+<h4>Labs Ordered by You</h4>
+<table class="table table-striped">
+    <tr><th>Patient</th><th>Date</th><th>Lab Type</th><th>Diagnosis</th></tr>
+    {% for lab, appt, patient, diagnosis in labs %}
+    <tr>
+        <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+        <td>{{ appt.appointment_date }}</td>
+        <td>{{ lab.lab_type }}</td>
+        <td>{{ diagnosis.disease_name if diagnosis else 'Pending' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+<!-- search for any patients -->
+<h4 class="mt-5">Search Patient History</h4>
+<form method="POST" class="mb-3">
+    <input type="text" name="patient_name" placeholder="Enter patient name" class="form-control w-50 d-inline-block">
+    <button type="submit" class="btn btn-secondary">Search</button>
+</form>
+
+{% if patient_results %}
+<h5>Medical History Results</h5>
+<table class="table table-bordered">
+    <tr><th>Patient</th><th>Diagnosis</th><th>First Appt</th><th>Follow-Up</th></tr>
+    {% for patient, history, diagnosis, first_appt, followup_appt in patient_results %}
+    <tr>
+        <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+        <td>{{ diagnosis.disease_name if diagnosis else 'Not Diagnosed' }}</td>
+        <td>{{ first_appt.appointment_date if first_appt else 'N/A' }}</td>
+        <td>{{ followup_appt.appointment_date if followup_appt else 'N/A' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No results found or no search made.</p>
+{% endif %}
+
+
+{% endblock %}

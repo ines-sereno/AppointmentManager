@@ -1,0 +1,44 @@
+<!--the lab tech view-->
+
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Lab Technician Dashboard</h2>
+
+<!-- select lab tech -->
+<form method="GET" class="mb-4">
+    <label for="lab_tech_id">Select Yourself:</label>
+    <select name="lab_tech_id" id="lab_tech_id" class="form-select w-auto d-inline-block">
+        {% for tech in lab_techs %}
+        <option value="{{ tech.employee_ID }}" {% if tech.employee_ID|string == selected_tech_id %}selected{% endif %}>
+            {{ tech.first_name }} {{ tech.last_name }}
+        </option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Load</button>
+</form>
+
+{% if selected_tech_id %}
+<h4>Labs Assigned to You</h4>
+{% if lab_results %}
+<table class="table table-striped">
+    <thead>
+        <tr><th>Patient</th><th>Appointment Date</th><th>Lab Type</th><th>Diagnosis</th></tr>
+    </thead>
+    <tbody>
+        {% for lab, appt, patient, diagnosis in lab_results %}
+        <tr>
+            <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+            <td>{{ appt.appointment_date }}</td>
+            <td>{{ lab.lab_type }}</td>
+            <td>{{ diagnosis.disease_name if diagnosis else 'Pending' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted">No labs assigned.</p>
+{% endif %}
+{% endif %}
+
+{% endblock %}

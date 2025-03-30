@@ -1,0 +1,135 @@
+<!--reception view-->
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Reception Dashboard</h2>
+
+<!-- search for any appointments -->
+<h4>Search Appointments</h4>
+<form method="POST" class="mb-4">
+    {{ form.csrf_token }}
+    <div class="row">
+        <div class="col">{{ form.provider_name.label }} {{ form.provider_name(class="form-control") }}</div>
+        <div class="col">{{ form.patient_name.label }} {{ form.patient_name(class="form-control") }}</div>
+        <div class="col">{{ form.appointment_date.label }} {{ form.appointment_date(class="form-control") }}</div>
+        <div class="col">{{ form.appointment_status.label }} {{ form.appointment_status(class="form-control") }}</div>
+        <div class="col"><br>{{ form.submit(class="btn btn-primary") }}</div>
+    </div>
+</form>
+
+{% if search_results %}
+<h5>Search Results</h5>
+<table class="table table-bordered">
+    <tr>
+        <th>Provider</th><th>Patient</th><th>Date</th><th>Time</th><th>Status</th><th>Reason</th>
+    </tr>
+    {% for appt, provider, patient, employee in search_results %}
+    <tr>
+        <td>{{ employee.first_name }} {{ employee.last_name }}</td>
+        <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+        <td>{{ appt.appointment_date }}</td>
+        <td>{{ appt.appointment_time }}</td>
+        <td>{{ appt.appointment_status }}</td>
+        <td>{{ appt.cancellation_reason or "" }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+<!-- waitlist is always on -->
+<h4>Waitlist</h4>
+<table class="table table-sm table-striped">
+    <tr>
+        <th>Patient</th><th>Date</th><th>Time</th><th>Status</th>
+    </tr>
+    {% for wait, appt, patient in waitlist %}
+    <tr>
+        <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+        <td>{{ appt.appointment_date }}</td>
+        <td>{{ appt.appointment_time }}</td>
+        <td>{{ wait.waitlist_status }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<!-- clinic schedule of when each provider is available -->
+<h4>Clinic Weekly Schedule</h4>
+<table class="table table-bordered text-center">
+    <thead>
+        <tr>
+            <th>Provider</th>
+            {% for day in weekdays %}
+                <th>{{ day }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% set grouped = {} %}
+        {% for sched, provider, employee in schedule %}
+            {% set provider_name = employee.first_name + ' ' + employee.last_name %}
+            {% if grouped[provider_name] is not defined %}
+                {% set _ = grouped.update({provider_name: {'specialty': provider.specialty, 'days': []}}) %}
+            {% endif %}
+            {% set _ = grouped[provider_name]['days'].append(sched.workday) %}
+        {% endfor %}
+
+        {% for name, data in grouped.items() %}
+        <tr>
+            <td>{{ name }} <br><small>{{ data.specialty }}</small></td>
+            {% for day in weekdays %}
+                <td>{% if day in data.days %}✔️{% else %}-{% endif %}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!--histogram of providers-->
+
+<h4 class="mt-5">Provider Availability by Specialty</h4>
+<canvas id="providerChart" width="400" height="200"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('providerChart').getContext('2d');
+    const providerChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ weekdays|tojson }},
+            datasets: {{ chart_datasets|tojson }}
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Providers per Day (by Specialty)'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            scales: {
+                x: {
+                    stacked: true
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+
+{% endblock %}

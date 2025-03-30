@@ -1,0 +1,16 @@
+<!--very basic home page just saying welcome-->
+
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center mt-5">
+    <h1 class="mb-4">Welcome to the Appointment Management System</h1>
+    <h2 class="mb-4">For Boston's Dermatology Clinic</h2>
+    <p class="lead">Choose your view:</p>
+
+    <div class="d-flex justify-content-center gap-3 mt-4">
+        <a href="/reception" class="btn btn-primary btn-lg">Reception</a>
+        <a href="/provider" class="btn btn-success btn-lg">Provider</a>
+        <a href="/lab" class="btn btn-info btn-lg">Lab Technician</a>
+    </div>
+</div>
+{% endblock %}
