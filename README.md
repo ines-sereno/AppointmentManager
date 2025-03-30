@@ -47,3 +47,9 @@ mysql+pymysql://username:password@hostname/dbname
 ### 4. Run the app
 
 flask --app app run
+
+Home Page:
+<img width="1782" alt="Screenshot 2025-03-30 at 16 01 47" src="https://github.com/user-attachments/assets/998626fa-f8b6-42fb-ad4d-da3cd4963822" />
+
+Reception Page:
+<img width="1784" alt="Screenshot 2025-03-30 at 16 02 26" src="https://github.com/user-attachments/assets/99b4c954-dbf0-4e17-bc46-0f4595cf2c3e" />
