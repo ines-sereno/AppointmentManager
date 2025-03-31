@@ -506,4 +506,36 @@ VALUES
 (41,  100, NULL,   36,  NULL);
 
 
+/*
+Adding appointments to appointment table
+    TRIGGER 1
+    patient has to be in patient table
+    TRIGGER 2
+    provider has to be in provider table
+    TRIGGER 3
+    appointment date has to be in the future
+    TRIGGER 4
+    provider, appointment_date, appointment_time combination can't already exist
 
+    -- if appointment cant be made, ask if it should be added to waitlist
+
+Changing appointment status to completed (nothing happens) , insert row in reception table
+    TRIGGER 1
+    reception clerk ID is in the reception table
+    TRIGGER 2
+    to update appointment status in appointment table to completed, appointment id has to be in the reception table
+    
+    -- payment info is dropdown 'credit card', 'debit card', 'cash', 'check'
+
+Provider changing rooms - updating ClinicSchedule table
+    TRIGGER 1
+    room cant be in use on that day
+
+Provider cancels shift - updating ClinicSchedule table
+
+Provider orders lab - inserting into lab table
+    pick lab tech (dropdown)
+    lab type (dropwdown)
+
+    TRIGGER 1
+    appointment_ID has to be in the appointment table, status completed
