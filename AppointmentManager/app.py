@@ -80,6 +80,71 @@ def reception_view():
 
     return render_template('reception.html', form=form, search_results=search_results, waitlist=waitlist, schedule=schedule, weekdays=weekdays_ordered, chart_datasets=chart_datasets)
 
+from flask import render_template, flash, redirect, url_for, request
+from datetime import datetime
+from models import db, Appointment, Patient, Provider
+from forms import AppointmentForm
+
+@app.route('/reception/add-appointment', methods=['GET', 'POST'])
+def add_appointment():
+    form = AppointmentForm()
+
+    form.patient_ID.choices = [
+        (p.patient_ID, f"{p.first_name} {p.last_name}") for p in Patient.query.all()
+    ]
+
+    form.provider_ID.choices = [
+        (pr.provider_ID, f"{emp.first_name} {emp.last_name}")
+        for pr in Provider.query.all()
+        for emp in [Employee.query.get(pr.provider_ID)]
+        if emp is not None
+    ]
+
+    if form.validate_on_submit():
+        # Check if patient exists (should always be true from dropdown, but safe)
+        patient = Patient.query.get(form.patient_ID.data)
+        if not patient:
+            flash('Selected patient does not exist.', 'danger')
+            return render_template('add_appointment.html', form=form)
+
+        provider = Provider.query.get(form.provider_ID.data)
+        if not provider:
+            flash('Selected provider does not exist.', 'danger')
+            return render_template('add_appointment.html', form=form)
+
+        # Check future date/time
+        appt_dt = datetime.combine(form.appointment_date.data, form.appointment_time.data)
+        if appt_dt <= datetime.now():
+            flash('Appointment must be in the future.', 'danger')
+            return render_template('add_appointment.html', form=form)
+
+        # Check for duplicate provider/date/time
+        existing = Appointment.query.filter_by(
+            provider_ID=form.provider_ID.data,
+            appointment_date=form.appointment_date.data,
+            appointment_time=form.appointment_time.data
+        ).first()
+        if existing:
+            flash('This provider already has an appointment at this time.', 'danger')
+            return render_template('add_appointment.html', form=form)
+
+        # Insert appointment
+        new_appt = Appointment(
+            patient_ID=form.patient_ID.data,
+            provider_ID=form.provider_ID.data,
+            appointment_date=form.appointment_date.data,
+            appointment_time=form.appointment_time.data,
+            appointment_status='Scheduled'  # default status
+        )
+        db.session.add(new_appt)
+        db.session.commit()
+
+        flash('Appointment successfully scheduled!', 'success')
+        return redirect(url_for('reception_view'))
+
+    return render_template('add_appointment.html', form=form)
+
+
 @app.route('/provider', methods=['GET', 'POST'])
 def provider_view():
     patient_results = []

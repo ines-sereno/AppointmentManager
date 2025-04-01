@@ -29,7 +29,7 @@ class Patient(db.Model):
 
 class Appointment(db.Model):
     __tablename__ = 'Appointment'
-    appointment_ID = db.Column(db.Integer, primary_key=True)
+    appointment_ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     appointment_date = db.Column(db.Date, nullable=False)
     appointment_time = db.Column(db.Time, nullable=False)
     provider_ID = db.Column(db.Integer, db.ForeignKey('Provider.provider_ID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False)
