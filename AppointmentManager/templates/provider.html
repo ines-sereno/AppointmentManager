@@ -83,6 +83,52 @@
 </table>
 {% endif %}
 
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Diagnosis Line Chart -->
+<canvas id="diagnosisChart" width="600" height="300"></canvas>
+<script>
+    const diagnosisCtx = document.getElementById('diagnosisChart').getContext('2d');
+    const diagnosisChart = new Chart(diagnosisCtx, {
+        type: 'line',
+        data: {
+            labels: {{ diagnosis_chart.labels|tojson }},
+            datasets: [
+                {% for dataset in diagnosis_chart.datasets %}
+                {
+                    label: '{{ dataset.label }}',
+                    data: {{ dataset.data }},
+                    borderColor: '{{ ['#42a5f5', '#66bb6a', '#ef5350', '#ab47bc', '#26c6da', '#ffa726', '#5c6bc0', '#9ccc65', '#8d6e63', '#26a69a'][loop.index0 % 10] }}',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.2
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Diagnoses Per Month'
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+
+
 <!-- search for any patients -->
 <h4 class="mt-5">Search Patient History</h4>
 <form method="POST" class="mb-3">

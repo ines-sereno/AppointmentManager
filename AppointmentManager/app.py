@@ -1,8 +1,9 @@
 # Main flask application
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, url_for, redirect, flash
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from models import db, Employee, Provider, Patient, Appointment, Waitlist, ClinicSchedule, Lab, Reception, Diagnosis, MedicalHistory
-from forms import SearchForm
+from forms import SearchForm, AppointmentForm
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
@@ -39,6 +40,38 @@ def reception_view():
             query = query.filter(Appointment.appointment_status == form.appointment_status.data)
 
         search_results = query.all()
+    
+    from sqlalchemy import extract, func
+    from collections import defaultdict
+    import calendar
+
+    # bar chart data for appointment status:
+    monthly_stats_raw = db.session.query(
+        extract('month', Appointment.appointment_date).label('month'),
+        Appointment.appointment_status,
+        func.count(Appointment.appointment_ID)
+    ).group_by('month', Appointment.appointment_status).all()
+
+    # Organize data for chart.js
+    monthly_stats = defaultdict(lambda: {'Scheduled': 0, 'Completed': 0, 'Canceled': 0})
+
+    for month, status, count in monthly_stats_raw:
+        month_name = calendar.month_name[int(month)]
+        monthly_stats[month_name][status] = count
+
+    # Ensure all months are present
+    ordered_months = list(calendar.month_name)[1:]  # Jan to Dec
+    appointment_chart = {
+        'labels': ordered_months,
+        'datasets': [
+            {
+                'label': status,
+                'data': [monthly_stats[m][status] for m in ordered_months]
+            }
+            for status in ['Scheduled', 'Completed', 'Canceled']
+        ]
+    }
+
 
     # waitlist information
     waitlist = db.session.query(Waitlist, Appointment, Patient)\
@@ -78,72 +111,7 @@ def reception_view():
             "data": data,
         })
 
-    return render_template('reception.html', form=form, search_results=search_results, waitlist=waitlist, schedule=schedule, weekdays=weekdays_ordered, chart_datasets=chart_datasets)
-
-from flask import render_template, flash, redirect, url_for, request
-from datetime import datetime
-from models import db, Appointment, Patient, Provider
-from forms import AppointmentForm
-
-@app.route('/reception/add-appointment', methods=['GET', 'POST'])
-def add_appointment():
-    form = AppointmentForm()
-
-    form.patient_ID.choices = [
-        (p.patient_ID, f"{p.first_name} {p.last_name}") for p in Patient.query.all()
-    ]
-
-    form.provider_ID.choices = [
-        (pr.provider_ID, f"{emp.first_name} {emp.last_name}")
-        for pr in Provider.query.all()
-        for emp in [Employee.query.get(pr.provider_ID)]
-        if emp is not None
-    ]
-
-    if form.validate_on_submit():
-        # Check if patient exists (should always be true from dropdown, but safe)
-        patient = Patient.query.get(form.patient_ID.data)
-        if not patient:
-            flash('Selected patient does not exist.', 'danger')
-            return render_template('add_appointment.html', form=form)
-
-        provider = Provider.query.get(form.provider_ID.data)
-        if not provider:
-            flash('Selected provider does not exist.', 'danger')
-            return render_template('add_appointment.html', form=form)
-
-        # Check future date/time
-        appt_dt = datetime.combine(form.appointment_date.data, form.appointment_time.data)
-        if appt_dt <= datetime.now():
-            flash('Appointment must be in the future.', 'danger')
-            return render_template('add_appointment.html', form=form)
-
-        # Check for duplicate provider/date/time
-        existing = Appointment.query.filter_by(
-            provider_ID=form.provider_ID.data,
-            appointment_date=form.appointment_date.data,
-            appointment_time=form.appointment_time.data
-        ).first()
-        if existing:
-            flash('This provider already has an appointment at this time.', 'danger')
-            return render_template('add_appointment.html', form=form)
-
-        # Insert appointment
-        new_appt = Appointment(
-            patient_ID=form.patient_ID.data,
-            provider_ID=form.provider_ID.data,
-            appointment_date=form.appointment_date.data,
-            appointment_time=form.appointment_time.data,
-            appointment_status='Scheduled'  # default status
-        )
-        db.session.add(new_appt)
-        db.session.commit()
-
-        flash('Appointment successfully scheduled!', 'success')
-        return redirect(url_for('reception_view'))
-
-    return render_template('add_appointment.html', form=form)
-
+    return render_template('reception.html', form=form, search_results=search_results, waitlist=waitlist, schedule=schedule, weekdays=weekdays_ordered, chart_datasets=chart_datasets, appointment_chart=appointment_chart)
 
 @app.route('/provider', methods=['GET', 'POST'])
 def provider_view():
@@ -170,6 +138,39 @@ def provider_view():
     # make the two aliases
     FirstAppt = aliased(Appointment)
     FollowUpAppt = aliased(Appointment)
+
+    from sqlalchemy import extract, func
+    from collections import defaultdict
+    import calendar
+
+    # Get monthly diagnosis counts (for all providers)
+    diagnosis_counts_raw = db.session.query(
+        extract('month', Appointment.appointment_date).label('month'),
+        Diagnosis.disease_name,
+        func.count(Diagnosis.diagnosis_ID)
+    ).join(Lab, Diagnosis.lab_ID == Lab.lab_ID)\
+    .join(Appointment, Lab.appointment_ID == Appointment.appointment_ID)\
+    .filter(Appointment.appointment_date.isnot(None))\
+    .group_by('month', Diagnosis.disease_name)\
+    .all()
+
+    months = list(calendar.month_name)[1:]  # January to December
+    disease_map = defaultdict(lambda: [0] * 12)
+
+    for month, disease, count in diagnosis_counts_raw:
+        if month:  # make sure month isn't None
+            disease_map[disease][int(month) - 1] += count
+
+    diagnosis_chart = {
+        "labels": months,
+        "datasets": [
+            {
+                "label": disease,
+                "data": counts
+            } for disease, counts in disease_map.items()
+        ]
+    }
+    
 
     # search patient by name and get their medical history
     if request.method == 'POST':
@@ -201,7 +202,7 @@ def provider_view():
     workdays = {sched.workday: sched.room_number for sched in provider_schedule}
 
     return render_template('provider.html', providers=providers, selected_provider_id=selected_provider_id, provider_schedule=provider_schedule, patient_results=patient_results, labs=labs, 
-    weekdays=weekdays, workdays=workdays, scheduled_appointments=scheduled_appointments)
+    weekdays=weekdays, workdays=workdays, scheduled_appointments=scheduled_appointments, diagnosis_chart=diagnosis_chart)
 
 @app.route('/lab')
 def lab_view():

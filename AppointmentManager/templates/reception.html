@@ -1,10 +1,8 @@
-<!--reception view-->
-
 {% extends "base.html" %}
 {% block content %}
 <h2>Reception Dashboard</h2>
 
-<!-- search for any appointments -->
+<!-- Search Appointments Form -->
 <h4>Search Appointments</h4>
 <form method="POST" class="mb-4">
     {{ form.csrf_token }}
@@ -17,8 +15,7 @@
     </div>
 </form>
 
-<a href="{{ url_for('add_appointment') }}" class="btn btn-success mb-3">➕ Add Appointment</a>
-
+<!-- Search Results -->
 {% if search_results %}
 <h5>Search Results</h5>
 <table class="table table-bordered">
@@ -38,8 +35,12 @@
 </table>
 {% endif %}
 
-<!-- waitlist is always on -->
-<h4>Waitlist</h4>
+<!-- Appointment Chart -->
+<h4 class="mt-5">Monthly Appointment Status</h4>
+<canvas id="appointmentChart" width="600" height="300"></canvas>
+
+<!-- Waitlist -->
+<h4 class="mt-5">Waitlist</h4>
 <table class="table table-sm table-striped">
     <tr>
         <th>Patient</th><th>Date</th><th>Time</th><th>Status</th>
@@ -54,8 +55,8 @@
     {% endfor %}
 </table>
 
-<!-- clinic schedule of when each provider is available -->
-<h4>Clinic Weekly Schedule</h4>
+<!-- Clinic Weekly Schedule -->
+<h4 class="mt-5">Clinic Weekly Schedule</h4>
 <table class="table table-bordered text-center">
     <thead>
         <tr>
@@ -86,15 +87,48 @@
     </tbody>
 </table>
 
-<!--histogram of providers-->
-
+<!-- Provider Availability Histogram -->
 <h4 class="mt-5">Provider Availability by Specialty</h4>
 <canvas id="providerChart" width="400" height="200"></canvas>
 
+<!-- Chart.js Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    const ctx = document.getElementById('providerChart').getContext('2d');
-    const providerChart = new Chart(ctx, {
+    // Appointment Status Chart
+    const appointmentCtx = document.getElementById('appointmentChart').getContext('2d');
+    const appointmentChart = new Chart(appointmentCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ appointment_chart.labels|tojson }},
+            datasets: [
+                {% for dataset in appointment_chart.datasets %}
+                {
+                    label: '{{ dataset.label }}',
+                    data: {{ dataset.data }},
+                    backgroundColor: '{{ ["#42a5f5", "#66bb6a", "#ef5350"][loop.index0 % 3] }}'
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Appointments Per Month'
+                }
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            }
+        }
+    });
+
+    // Provider Availability Chart
+    const providerCtx = document.getElementById('providerChart').getContext('2d');
+    const providerChart = new Chart(providerCtx, {
         type: 'bar',
         data: {
             labels: {{ weekdays|tojson }},
@@ -121,17 +155,11 @@
                 intersect: false
             },
             scales: {
-                x: {
-                    stacked: true
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true
-                }
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
             }
         }
     });
 </script>
-
 
 {% endblock %}
