@@ -31,14 +31,18 @@ This app supports three user views:
 
 ### 1. Clone the repo
 
-git clone https://github.com/your-username/appointment-manager.git
-cd appointment-manager
+```bash
+git clone https://github.com/ines-sereno/AppointmentManager.git
+cd AppointmentManager
+```
 
 ### 2. Set up the environment
 
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
 
 ### 3. Set up the database
 
